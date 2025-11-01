@@ -17,17 +17,38 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Header } from "./header";
+import { useSession, signOut } from "@/lib/auth-client";
+import { toast } from "react-hot-toast";
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  const { data: session, isPending } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(true);
+
+  // Redirect to login if no session (backup to middleware)
+  if (!isPending && !session?.user) {
+    router.push("/login");
+    return null;
+  }
+
+  // Show loading state
+  if (isPending) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const user = session?.user;
 
   const navigation = [
     {
@@ -56,8 +77,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     },
   ];
 
-  const handleLogout = () => {
-    router.push("/login");
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success("Signed out successfully");
+      router.push("/login");
+    } catch (error) {
+      console.error("Sign out error:", error);
+      toast.error("Error signing out");
+    }
   };
 
   return (
@@ -129,19 +157,32 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               isCollapsed ? "md:justify-center" : ""
             }`}
           >
-            <Avatar className="h-10 w-10 bg-white text-black shrink-0">
-              <div className="flex items-center justify-center w-full h-full text-sm font-semibold">
-                JD
-              </div>
+            <Avatar className="h-10 w-10 bg-blue-600 text-white shrink-0">
+              <AvatarImage
+                src={user?.image || undefined}
+                alt={user?.name || user?.email || "User"}
+              />
+              <AvatarFallback className="bg-blue-600 text-white text-sm font-semibold">
+                {user?.name || user?.email
+                  ? (user.name || user.email)
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2)
+                  : "U"}
+              </AvatarFallback>
             </Avatar>
             <div
               className={`flex-1 min-w-0 transition-opacity duration-200 ${
                 isCollapsed ? "hidden md:hidden" : "block"
               }`}
             >
-              <p className="text-sm font-medium truncate">John Doe</p>
+              <p className="text-sm font-medium truncate">
+                {user?.name || "User"}
+              </p>
               <p className="text-xs text-neutral-400 truncate">
-                john@example.com
+                {user?.email || ""}
               </p>
             </div>
           </div>
@@ -149,7 +190,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             onClick={handleLogout}
             variant="outline"
             size="sm"
-            className={`w-full border-neutral-800 hover:bg-neutral-800 text-neutral-400 ${
+            className={`w-full border-neutral-800 hover:bg-neutral-800 text-neutral-400 hover:text-white ${
               isCollapsed ? "md:px-2" : ""
             }`}
           >

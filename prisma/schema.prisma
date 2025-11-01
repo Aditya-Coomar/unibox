@@ -6,40 +6,77 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
-// Users & Authentication
+// Users & Authentication - Better Auth Compatible
 model User {
-  id          String   @id @default(cuid())
-  email       String   @unique
-  name        String?
-  avatar      String?
-  role        UserRole @default(VIEWER)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Relations
-  messages    Message[]
-  notes       Note[]
-  sessions    Session[]
+  id            String   @id @default(cuid())
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  name          String?
+  image         String?
+  role          UserRole @default(VIEWER)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  @@map("users")
+  // Relations for application functionality
+  messages Message[]
+  notes    Note[]
+  sessions Session[]
+  accounts Account[]
+
+  @@map("user")
 }
 
 model Session {
   id        String   @id @default(cuid())
-  userId    String
   token     String   @unique
+  userId    String
   expiresAt DateTime
+  ipAddress String?
+  userAgent String?
   createdAt DateTime @default(now())
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt DateTime @updatedAt
 
-  @@map("sessions")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String    @unique
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier, value])
+  @@map("verification")
 }
 
 enum UserRole {
@@ -50,76 +87,76 @@ enum UserRole {
 
 // Contacts & Conversations
 model Contact {
-  id              String    @id @default(cuid())
-  firstName       String?
-  lastName        String?
-  email           String?   @unique
-  phone           String?   @unique
-  whatsappNumber  String?   @unique
-  tags            String[]
-  customFields    Json?
-  isActive        Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
+  id             String   @id @default(cuid())
+  firstName      String?
+  lastName       String?
+  email          String?  @unique
+  phone          String?  @unique
+  whatsappNumber String?  @unique
+  tags           String[]
+  customFields   Json?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
   // Relations
-  conversations   Conversation[]
-  notes           Note[]
+  conversations Conversation[]
+  notes         Note[]
 
   @@map("contacts")
 }
 
 model Conversation {
-  id              String               @id @default(cuid())
-  contactId       String
-  channel         CommunicationChannel
-  status          ConversationStatus   @default(ACTIVE)
-  lastMessageAt   DateTime?
-  unreadCount     Int                  @default(0)
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
-  
+  id            String               @id @default(cuid())
+  contactId     String
+  channel       CommunicationChannel
+  status        ConversationStatus   @default(ACTIVE)
+  lastMessageAt DateTime?
+  unreadCount   Int                  @default(0)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
   // Relations
-  contact         Contact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  messages        Message[]
-  
+  contact  Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  messages Message[]
+
   @@unique([contactId, channel])
   @@map("conversations")
 }
 
 model Message {
-  id              String            @id @default(cuid())
-  conversationId  String
-  senderId        String?           // null for inbound messages
-  content         String
-  channel         CommunicationChannel
-  direction       MessageDirection
-  status          MessageStatus     @default(SENT)
-  externalId      String?           // Twilio SID, Email Message-ID, etc.
-  scheduledFor    DateTime?
-  deliveredAt     DateTime?
-  readAt          DateTime?
-  metadata        Json?             // Channel-specific data
-  createdAt       DateTime          @default(now())
-  
+  id             String               @id @default(cuid())
+  conversationId String
+  senderId       String? // null for inbound messages
+  content        String
+  channel        CommunicationChannel
+  direction      MessageDirection
+  status         MessageStatus        @default(SENT)
+  externalId     String? // Twilio SID, Email Message-ID, etc.
+  scheduledFor   DateTime?
+  deliveredAt    DateTime?
+  readAt         DateTime?
+  metadata       Json? // Channel-specific data
+  createdAt      DateTime             @default(now())
+
   // Relations
-  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender          User?        @relation(fields: [senderId], references: [id])
-  attachments     MessageAttachment[]
+  conversation Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User?               @relation(fields: [senderId], references: [id])
+  attachments  MessageAttachment[]
 
   @@map("messages")
 }
 
 model MessageAttachment {
-  id          String   @id @default(cuid())
-  messageId   String
-  fileName    String
-  fileUrl     String
-  fileType    String
-  fileSize    Int
-  createdAt   DateTime @default(now())
-  
-  message     Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  messageId String
+  fileName  String
+  fileUrl   String
+  fileType  String
+  fileSize  Int
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@map("message_attachments")
 }
@@ -152,33 +189,33 @@ enum ConversationStatus {
 
 // Notes & Collaboration
 model Note {
-  id          String   @id @default(cuid())
-  contactId   String
-  authorId    String
-  content     String
-  isPrivate   Boolean  @default(false)
-  mentions    String[] // User IDs mentioned (@mentions)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  author      User     @relation(fields: [authorId], references: [id])
+  id        String   @id @default(cuid())
+  contactId String
+  authorId  String
+  content   String
+  isPrivate Boolean  @default(false)
+  mentions  String[] // User IDs mentioned (@mentions)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  author  User    @relation(fields: [authorId], references: [id])
 
   @@map("notes")
 }
 
 // Templates & Automation
 model Template {
-  id          String               @id @default(cuid())
-  name        String
-  content     String
-  channel     CommunicationChannel
-  variables   String[]             // Placeholder variables like {{firstName}}
-  isActive    Boolean              @default(true)
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
-  
-  campaigns   Campaign[]
+  id        String               @id @default(cuid())
+  name      String
+  content   String
+  channel   CommunicationChannel
+  variables String[] // Placeholder variables like {{firstName}}
+  isActive  Boolean              @default(true)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  campaigns Campaign[]
 
   @@map("templates")
 }
@@ -188,27 +225,27 @@ model Campaign {
   name        String
   templateId  String
   triggerType TriggerType
-  triggerData Json?          // Conditions, delays, etc.
+  triggerData Json? // Conditions, delays, etc.
   status      CampaignStatus @default(DRAFT)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
-  
-  template    Template       @relation(fields: [templateId], references: [id])
-  executions  CampaignExecution[]
+
+  template   Template            @relation(fields: [templateId], references: [id])
+  executions CampaignExecution[]
 
   @@map("campaigns")
 }
 
 model CampaignExecution {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   campaignId String
   contactId  String
   messageId  String?
-  status     String   // PENDING, SENT, FAILED
+  status     String // PENDING, SENT, FAILED
   executedAt DateTime?
-  createdAt  DateTime @default(now())
-  
-  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  createdAt  DateTime  @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
 
   @@map("campaign_executions")
 }
@@ -229,27 +266,27 @@ enum CampaignStatus {
 
 // Analytics
 model DailyMetrics {
-  id              String               @id @default(cuid())
-  date            DateTime             @db.Date
-  channel         CommunicationChannel
-  messagesSent    Int                  @default(0)
-  messagesReceived Int                 @default(0)
-  responseRate    Float?
-  avgResponseTime Int?                 // in minutes
-  
+  id               String               @id @default(cuid())
+  date             DateTime             @db.Date
+  channel          CommunicationChannel
+  messagesSent     Int                  @default(0)
+  messagesReceived Int                  @default(0)
+  responseRate     Float?
+  avgResponseTime  Int? // in minutes
+
   @@unique([date, channel])
   @@map("daily_metrics")
 }
 
 // Integration Settings
 model Integration {
-  id          String           @id @default(cuid())
-  type        IntegrationType
-  config      Json             // Encrypted configuration
-  isActive    Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  
+  id        String          @id @default(cuid())
+  type      IntegrationType
+  config    Json // Encrypted configuration
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
   @@unique([type]) // Only one integration per type
   @@map("integrations")
 }

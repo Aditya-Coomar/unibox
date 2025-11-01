@@ -1,39 +1,38 @@
 import twilio from "twilio";
-import { PrismaClient, CommunicationChannel } from "@prisma/client";
+import { CommunicationChannel } from "@prisma/client";
 
-const prisma = new PrismaClient();
+// Get Twilio configuration from environment variables
+function getTwilioConfig() {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const phoneNumber = process.env.TWILIO_PHONE_NUMBER;
+  const whatsappNumber = process.env.TWILIO_WHATSAPP_NUMBER;
 
-// Get Twilio configuration from database
-async function getTwilioConfig() {
-  const integration = await prisma.integration.findFirst({
-    where: { type: "TWILIO", isActive: true },
-  });
-
-  if (!integration) {
-    throw new Error("Twilio integration not configured");
+  if (!accountSid || !authToken || !phoneNumber) {
+    throw new Error(
+      "Twilio credentials not configured in environment variables"
+    );
   }
 
-  const config = integration.config as {
-    accountSid: string;
-    authToken: string;
-    phoneNumber: string;
-    whatsappNumber: string;
+  return {
+    accountSid,
+    authToken,
+    phoneNumber,
+    whatsappNumber: whatsappNumber || "whatsapp:+14155238886", // Default sandbox number
   };
-
-  return config;
 }
 
 // Initialize Twilio client
-export async function getTwilioClient() {
-  const config = await getTwilioConfig();
+export function getTwilioClient() {
+  const config = getTwilioConfig();
   return twilio(config.accountSid, config.authToken);
 }
 
 // Send SMS
 export async function sendSMS(to: string, message: string, from?: string) {
   try {
-    const client = await getTwilioClient();
-    const config = await getTwilioConfig();
+    const client = getTwilioClient();
+    const config = getTwilioConfig();
 
     const result = await client.messages.create({
       body: message,
@@ -58,8 +57,8 @@ export async function sendSMS(to: string, message: string, from?: string) {
 // Send WhatsApp message
 export async function sendWhatsApp(to: string, message: string) {
   try {
-    const client = await getTwilioClient();
-    const config = await getTwilioConfig();
+    const client = getTwilioClient();
+    const config = getTwilioConfig();
 
     // Format WhatsApp numbers
     const whatsappTo = to.startsWith("whatsapp:") ? to : `whatsapp:${to}`;

@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient, CommunicationChannel } from "@prisma/client";
+import { CommunicationChannel } from "@prisma/client";
 import {
   processEmailWebhook,
   validateEmailWebhook,
 } from "@/lib/integrations/email";
-
-const prisma = new PrismaClient();
+import { processInboundMessage } from "@/lib/services/message-service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,105 +26,33 @@ export async function POST(request: NextRequest) {
     // Process the webhook data
     const webhookData = processEmailWebhook(data);
 
-    // Find or create contact by email
-    let contact = await prisma.contact.findFirst({
-      where: { email: webhookData.from },
+    // Process the inbound message using our service
+    const result = await processInboundMessage({
+      from: webhookData.from,
+      to: webhookData.to,
+      content: webhookData.content,
+      channel: CommunicationChannel.EMAIL,
+      externalId: webhookData.externalId,
+      subject: webhookData.subject,
+      timestamp: webhookData.timestamp,
+      attachments: webhookData.attachments,
     });
 
-    if (!contact) {
-      // Create new contact
-      const emailParts = webhookData.from.split("@");
-      const name = emailParts[0].replace(/[._]/g, " ");
-
-      contact = await prisma.contact.create({
-        data: {
-          email: webhookData.from,
-          firstName: name.charAt(0).toUpperCase() + name.slice(1),
-        },
-      });
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error || "Failed to process message" },
+        { status: 500 }
+      );
     }
 
-    // Find or create conversation
-    let conversation = await prisma.conversation.findFirst({
-      where: {
-        contactId: contact.id,
-        channel: CommunicationChannel.EMAIL,
-      },
-    });
-
-    if (!conversation) {
-      conversation = await prisma.conversation.create({
-        data: {
-          contactId: contact.id,
-          channel: CommunicationChannel.EMAIL,
-          lastMessageAt: webhookData.timestamp,
-          unreadCount: 1,
-        },
-      });
-    } else {
-      // Update conversation
-      await prisma.conversation.update({
-        where: { id: conversation.id },
-        data: {
-          lastMessageAt: webhookData.timestamp,
-          unreadCount: { increment: 1 },
-        },
-      });
-    }
-
-    // Create message
-    const message = await prisma.message.create({
+    return NextResponse.json({
+      success: true,
       data: {
-        conversationId: conversation.id,
-        content: webhookData.content,
-        channel: CommunicationChannel.EMAIL,
-        direction: "INBOUND",
-        externalId: webhookData.externalId,
-        status: "DELIVERED",
-        createdAt: webhookData.timestamp,
-        metadata: {
-          subject: webhookData.subject,
-          from: webhookData.from,
-          to: webhookData.to,
-        },
+        message: result.message,
+        conversation: result.conversation,
+        contact: result.contact,
       },
     });
-
-    // Handle attachments if present
-    if (webhookData.attachments.length > 0) {
-      await prisma.messageAttachment.createMany({
-        data: webhookData.attachments.map((attachment) => ({
-          messageId: message.id,
-          fileName: attachment.filename,
-          fileUrl: attachment.url,
-          fileType: attachment.contentType,
-          fileSize: attachment.size,
-        })),
-      });
-    }
-
-    // Update daily metrics
-    const today = new Date(webhookData.timestamp);
-    today.setHours(0, 0, 0, 0);
-
-    await prisma.dailyMetrics.upsert({
-      where: {
-        date_channel: {
-          date: today,
-          channel: CommunicationChannel.EMAIL,
-        },
-      },
-      update: {
-        messagesReceived: { increment: 1 },
-      },
-      create: {
-        date: today,
-        channel: CommunicationChannel.EMAIL,
-        messagesReceived: 1,
-      },
-    });
-
-    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Email webhook error:", error);
     return NextResponse.json(

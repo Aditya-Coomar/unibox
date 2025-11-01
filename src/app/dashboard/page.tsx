@@ -4,22 +4,10 @@ import { useState } from "react";
 import DashboardLayout from "@/components/dashboard/layout";
 import ConversationList from "@/components/dashboard/conversation-list";
 import MessageView from "@/components/dashboard/message-view";
-import { sampleConversations, sampleMessages } from "@/lib/sample-data";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
 
 export default function DashboardPage() {
-  const [selectedConversation, setSelectedConversation] = useState(
-    sampleConversations[0].id
-  );
+  const [selectedConversation, setSelectedConversation] = useState<string>("");
   const [showMessages, setShowMessages] = useState(false);
-
-  const currentConversation = sampleConversations.find(
-    (c) => c.id === selectedConversation
-  );
-
-  const currentMessages =
-    sampleMessages[selectedConversation as keyof typeof sampleMessages] || [];
 
   const handleSelectConversation = (id: string) => {
     setSelectedConversation(id);
@@ -40,7 +28,6 @@ export default function DashboardPage() {
           } w-full lg:w-96 h-full`}
         >
           <ConversationList
-            conversations={sampleConversations}
             selectedId={selectedConversation}
             onSelect={handleSelectConversation}
           />
@@ -53,8 +40,7 @@ export default function DashboardPage() {
           } flex-1 h-full`}
         >
           <MessageView
-            conversation={currentConversation}
-            messages={currentMessages}
+            conversationId={selectedConversation}
             onBack={handleBack}
             showBackButton={showMessages}
           />

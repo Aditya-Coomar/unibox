@@ -1,68 +1,80 @@
 # UniBox - Unified Multi-Channel Communication Platform
 
-A comprehensive unified communication platform built with Next.js 14 that aggregates messages from SMS (Twilio), WhatsApp (Twilio API), and email into a single inbox for seamless multi-channel customer outreach.
+A comprehensive customer outreach platform built with Next.js 14+ that unifies SMS, WhatsApp, and Email communication channels into a single inbox.
 
 ## 🚀 Features
 
-### Core Functionality
+### Contact Management
 
-- **Unified Inbox**: Single interface for SMS, WhatsApp, and Email communications
-- **Multi-Channel Messaging**: Send and receive messages across all integrated channels
-- **Real-time Updates**: Live message updates and notifications
-- **Contact Management**: Centralized contact database with history and notes
-- **Team Collaboration**: Multi-user support with role-based access control
-- **Analytics Dashboard**: Comprehensive metrics and reporting
+- ✅ **CRUD Operations**: Create, read, update, and delete contacts
+- ✅ **Multi-Channel Support**: Phone, WhatsApp, Email contact information
+- ✅ **Tagging System**: Organize contacts with custom tags
+- ✅ **Search & Filter**: Find contacts by name, email, phone, or tags
+- ✅ **Rich UI**: Modern contact cards with avatars and quick actions
 
-### Channel Integrations
+### Multi-Channel Messaging
 
-- **SMS/MMS**: Twilio SMS API integration
-- **WhatsApp**: Twilio WhatsApp Business API
-- **Email**: Custom email server integration
-- **Webhooks**: Real-time message delivery via webhooks
+- ✅ **SMS Integration**: Twilio SMS API for text messaging
+- ✅ **WhatsApp Integration**: Twilio WhatsApp API for business messaging
+- ✅ **Email Integration**: Custom Email API for professional email communication
+- ✅ **Message Scheduling**: Schedule messages for later delivery
+- ✅ **Channel Detection**: Automatically detect available channels per contact
 
-### User Experience
+### Authentication & Security
 
-- **Dark Theme**: Modern dark UI with shadcn/ui components
-- **Responsive Design**: Works seamlessly on desktop and mobile
-- **Search & Filters**: Advanced conversation and message search
-- **Message Scheduling**: Schedule messages for future delivery
-- **File Attachments**: Support for media and document sharing
+- ✅ **Better Auth Integration**: Secure user authentication
+- ✅ **Role-Based Access**: User session management
+- ✅ **Protected Routes**: Middleware for route protection
 
-## 🏗️ Tech Stack
+### Database & API
 
-### Frontend & Backend
+- ✅ **Prisma ORM**: Type-safe database operations
+- ✅ **PostgreSQL**: Robust data storage
+- ✅ **RESTful APIs**: Clean API endpoints for all operations
+- ✅ **Type Safety**: Full TypeScript implementation
 
-- **Framework**: Next.js 14 (App Router, TypeScript)
-- **UI Components**: shadcn/ui with Tailwind CSS
-- **Authentication**: Better Auth with email/password and Google OAuth
-- **Database**: PostgreSQL with Prisma ORM
-- **Real-time**: React Query for optimistic updates
+## 🛠️ Tech Stack
+
+### Frontend/Backend
+
+- **Next.js 14+** - App Router, TypeScript
+- **React 19** - Latest React features
+- **Tailwind CSS 4** - Modern styling
+
+### Database & ORM
+
+- **PostgreSQL** - Primary database
+- **Prisma** - Database ORM and migrations
+
+### Authentication
+
+- **Better Auth** - Authentication system with session management
 
 ### Integrations
 
-- **Twilio SDK**: SMS/WhatsApp messaging
-- **Custom Email API**: Flexible email server integration
-- **Webhook Support**: Secure webhook validation and processing
+- **Twilio SDK** - SMS/WhatsApp messaging
+- **Custom Email API** - Professional email delivery service
+- **React Query** - Data fetching and caching
 
-### Development
+### UI Components
 
-- **TypeScript**: Full type safety
-- **ESLint/Prettier**: Code quality and formatting
-- **Git**: Version control with branch management
+- **Radix UI** - Headless component primitives
+- **Lucide React** - Modern icons
+- **React Hot Toast** - Notification system
 
 ## 📋 Prerequisites
 
 - Node.js 18+
 - PostgreSQL database
-- Twilio account with SMS and WhatsApp enabled numbers
-- Custom email server (or email service API)
+- Twilio account with phone number
+- Custom email API access
 
-## 🛠️ Setup Instructions
+## 🔧 Installation & Setup
 
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/your-username/unibox.git
+git clone https://github.com/yourusername/unibox.git
 cd unibox
 ```
 
@@ -74,7 +86,7 @@ npm install
 
 ### 3. Environment Configuration
 
-Create a `.env.local` file in the root directory:
+Create a `.env` file with the following variables:
 
 ```env
 # Database
@@ -87,17 +99,13 @@ BETTER_AUTH_URL="http://localhost:3000"
 # Twilio Configuration
 TWILIO_ACCOUNT_SID="your-twilio-account-sid"
 TWILIO_AUTH_TOKEN="your-twilio-auth-token"
-TWILIO_PHONE_NUMBER="your-twilio-phone-number"
-TWILIO_WHATSAPP_NUMBER="whatsapp:your-whatsapp-number"
+TWILIO_PHONE_NUMBER="+1234567890"
+TWILIO_WHATSAPP_NUMBER="whatsapp:+14155238886"
 
-# Email Server Configuration
-EMAIL_SERVER_API_ENDPOINT="https://your-email-server.com/api"
-EMAIL_SERVER_API_KEY="your-email-server-api-key"
-EMAIL_WEBHOOK_SECRET="your-email-webhook-secret"
-
-# Google OAuth (Optional)
-GOOGLE_CLIENT_ID="your-google-client-id"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
+# Custom Email Service Configuration
+CUSTOM_EMAIL_API_KEY="your-custom-email-api-key"
+CUSTOM_EMAIL_API_URL="https://your-email-api-endpoint.com/api/send-mail"
+CUSTOM_EMAIL_SENDER_NAME="Your Email Service Name"
 ```
 
 ### 4. Database Setup
@@ -107,26 +115,13 @@ GOOGLE_CLIENT_SECRET="your-google-client-secret"
 npx prisma generate
 
 # Run database migrations
-npx prisma migrate deploy
+npx prisma db push
 
-# Optional: Seed database with sample data
+# (Optional) Seed database
 npx prisma db seed
 ```
 
-### 5. Configure Twilio Webhooks
-
-Set up webhooks in your Twilio Console:
-
-- **SMS Webhook URL**: `https://yourdomain.com/api/webhooks/twilio`
-- **WhatsApp Webhook URL**: `https://yourdomain.com/api/webhooks/twilio`
-
-### 6. Configure Email Server Webhooks
-
-Set up webhook in your email server to POST to:
-
-- **Email Webhook URL**: `https://yourdomain.com/api/webhooks/email`
-
-### 7. Start Development Server
+### 5. Start Development Server
 
 ```bash
 npm run dev
@@ -134,157 +129,252 @@ npm run dev
 
 Visit `http://localhost:3000` to access the application.
 
-## 🏛️ Architecture Overview
+## 📊 Database Schema
 
-### Database Schema
+### Core Tables
 
-The application uses a normalized PostgreSQL schema with the following key entities:
+#### Users
 
-- **User**: Authentication and user management
-- **Contact**: Customer contact information
-- **Conversation**: Channel-specific conversation threads
-- **Message**: Individual messages with metadata
-- **Integration**: Channel configuration and credentials
-- **MessageTemplate**: Reusable message templates
-- **ScheduledMessage**: Future message scheduling
-- **ContactNote**: Team collaboration notes
-- **DailyMetrics**: Analytics and reporting data
+- Authentication and user management
+- Integration with Better Auth
 
-### API Structure
+#### Contacts
+
+- Contact information storage
+- Multi-channel communication details
+- Tagging and categorization
+
+#### Conversations
+
+- Channel-specific conversation threads
+- Links contacts to message history
+
+#### Messages
+
+- Unified message storage across all channels
+- Message status tracking (sent, delivered, failed)
+- Scheduling support
+
+#### Message Attachments
+
+- File attachment metadata
+- Support for images, documents, etc.
+
+## 🔌 API Endpoints
+
+### Contact Management
 
 ```
-/api/
-├── auth/[...all]           # Better Auth endpoints
-├── webhooks/
-│   ├── twilio/            # Twilio SMS/WhatsApp webhooks
-│   └── email/             # Email server webhooks
-├── messages/              # Message sending API
-├── conversations/         # Conversation management
-└── analytics/            # Analytics and metrics
+GET    /api/contacts          # List all contacts
+POST   /api/contacts          # Create new contact
+GET    /api/contacts/[id]     # Get contact by ID
+PUT    /api/contacts/[id]     # Update contact
+DELETE /api/contacts/[id]     # Delete contact
 ```
 
-### Component Architecture
+### Messaging
 
 ```
-src/
-├── app/                  # Next.js App Router
-├── components/
-│   ├── ui/              # shadcn/ui components
-│   ├── dashboard/       # Main dashboard components
-│   └── analytics/       # Analytics components
-├── lib/
-│   ├── integrations/    # Channel integrations
-│   ├── services/        # Business logic
-│   └── auth.ts          # Authentication config
-└── prisma/
-    └── schema.prisma    # Database schema
+POST   /api/messages/send     # Send message (SMS/WhatsApp/Email)
 ```
 
-## 📊 Channel Integration Comparison
+### Webhooks
 
-| Channel  | Latency | Cost        | Reliability | Features                  |
-| -------- | ------- | ----------- | ----------- | ------------------------- |
-| SMS      | ~1-5s   | $0.0075/msg | 99.9%       | Text only, global reach   |
-| WhatsApp | ~1-3s   | $0.005/msg  | 99.5%       | Rich media, read receipts |
-| Email    | ~5-30s  | $0.001/msg  | 99.7%       | Rich content, attachments |
-
-### Key Integration Decisions
-
-1. **Twilio for SMS/WhatsApp**: Industry-leading reliability and global coverage
-2. **Custom Email Server**: Flexibility for enterprise requirements and cost optimization
-3. **Unified Message Model**: Consistent data structure across all channels
-4. **Webhook Architecture**: Real-time message processing with retry logic
-5. **Channel-Specific Metadata**: Preserve channel features while maintaining unified interface
-
-## 🔒 Security Considerations
-
-- **Environment Variables**: All secrets stored in environment variables
-- **Webhook Validation**: Signature verification for all incoming webhooks
-- **Database Security**: Parameterized queries and connection encryption
-- **Authentication**: Secure session management with Better Auth
-- **Rate Limiting**: API rate limiting to prevent abuse
-
-## 📈 Analytics & Monitoring
-
-The platform includes comprehensive analytics:
-
-- **Message Volume**: Track messages by channel and time period
-- **Response Times**: Monitor team performance metrics
-- **Channel Performance**: Compare engagement across channels
-- **Conversion Tracking**: Follow customer journey through conversations
-- **Team Metrics**: Individual agent performance tracking
-
-## 🚀 Deployment
-
-### Production Deployment (Vercel)
-
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel --prod
+```
+POST   /api/webhooks/twilio   # Twilio webhook for incoming messages
+POST   /api/webhooks/email    # Email webhook for incoming messages
 ```
 
-### Docker Deployment
+### Authentication
 
-```bash
-# Build image
-docker build -t unibox .
-
-# Run container
-docker run -p 3000:3000 --env-file .env unibox
+```
+POST   /api/auth/login        # User login
+POST   /api/auth/register     # User registration
+POST   /api/auth/logout       # User logout
 ```
 
-### Environment Setup
+## 🎯 Usage Examples
 
-Ensure production environment variables are configured:
+### Creating a Contact
 
-- Database connection with SSL
-- Twilio production credentials
-- Email server production endpoints
-- Domain-specific webhook URLs
+```typescript
+const contact = {
+  firstName: "John",
+  lastName: "Doe",
+  email: "john@example.com",
+  phone: "+1234567890",
+  whatsappNumber: "+1234567890",
+  tags: ["customer", "vip"],
+};
 
-## 🧪 Testing
-
-### Run Tests
-
-```bash
-# Unit tests
-npm run test
-
-# Integration tests
-npm run test:integration
-
-# E2E tests
-npm run test:e2e
+const response = await fetch("/api/contacts", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(contact),
+});
 ```
 
-### Test Coverage
+### Sending a Message
 
-The application includes:
+```typescript
+const message = {
+  contactId: "contact-id",
+  content: "Hello! How can we help you today?",
+  channel: "SMS", // or "WHATSAPP", "EMAIL"
+  scheduledFor: "2024-01-01T12:00:00Z", // optional
+};
 
-- Unit tests for business logic
-- Integration tests for API endpoints
-- E2E tests for critical user flows
-- Webhook simulation tests
+const response = await fetch("/api/messages/send", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(message),
+});
+```
+
+## 📱 Channel Integration Details
+
+### SMS via Twilio
+
+- Direct SMS messaging to phone numbers
+- Delivery status tracking
+- International number support
+- Trial account limitations apply
+
+### WhatsApp via Twilio
+
+- WhatsApp Business API integration
+- Rich media support (images, documents)
+- Sandbox mode for development
+- Production approval required for live messages
+
+### Email via Custom API
+
+- Professional email delivery service
+- HTML content support with automatic plain text conversion
+- Multiple recipient support
+- Secure API key authentication
+- Custom sender name configuration
+
+## 🔐 Security Features
+
+### Authentication
+
+- Secure session management
+- Route-level protection
+- User role verification
+
+### Data Protection
+
+- Input validation with Zod schemas
+- SQL injection prevention via Prisma
+- XSS protection with Next.js
+
+### API Security
+
+- Request validation
+- Error handling without data leakage
+- Rate limiting considerations
+
+## 🎨 UI/UX Features
+
+### Modern Design
+
+- Dark theme optimized interface
+- Responsive design for all devices
+- Consistent component library
+
+### User Experience
+
+- Real-time form validation
+- Loading states and error handling
+- Intuitive navigation and workflows
+- Toast notifications for user feedback
+
+### Accessibility
+
+- ARIA labels for screen readers
+- Keyboard navigation support
+- High contrast design elements
+
+## 🚦 Development Workflow
+
+### Code Quality
+
+- TypeScript for type safety
+- ESLint for code consistency
+- Prettier for code formatting
+
+### Testing Strategy
+
+- Component testing with React Testing Library
+- API endpoint testing
+- Integration testing for workflows
+
+### Deployment
+
+- Vercel deployment ready
+- Environment variable management
+- Production optimizations
+
+## 📈 Performance Optimizations
+
+### Frontend
+
+- React Query for efficient data fetching
+- Component lazy loading
+- Image optimization with Next.js
+
+### Backend
+
+- Database query optimization
+- API response caching
+- Connection pooling
+
+### Monitoring
+
+- Error tracking integration ready
+- Performance monitoring setup
+- User analytics preparation
+
+## 🔄 Integration Comparison
+
+| Channel  | Latency | Cost     | Reliability | Rich Media |
+| -------- | ------- | -------- | ----------- | ---------- |
+| SMS      | ~1-5s   | Low      | Very High   | Limited    |
+| WhatsApp | ~1-3s   | Medium   | High        | Excellent  |
+| Email    | ~5-30s  | Very Low | High        | Excellent  |
+
+## 🗓️ Roadmap
+
+### Phase 1 (Current)
+
+- ✅ Contact management system
+- ✅ Multi-channel messaging (SMS, WhatsApp, Email)
+- ✅ Basic scheduling functionality
+
+### Phase 2 (Planned)
+
+- [ ] Real-time chat interface
+- [ ] Message templates and automation
+- [ ] Analytics and reporting dashboard
+- [ ] Team collaboration features
+
+### Phase 3 (Future)
+
+- [ ] Social media integrations (Twitter, Facebook)
+- [ ] AI-powered message suggestions
+- [ ] Advanced workflow automation
+- [ ] Mobile application
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-### Development Guidelines
-
-- Follow TypeScript best practices
-- Use conventional commit messages
-- Add tests for new features
-- Update documentation as needed
-
-## 📝 License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
@@ -293,30 +383,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 For support and questions:
 
 - Create an issue in the GitHub repository
-- Check the documentation in `/docs`
-- Review the integration guides for specific channels
-
-## 🗺️ Roadmap
-
-### Upcoming Features
-
-- [ ] Voice call integration
-- [ ] Advanced message templates
-- [ ] Chatbot integration
-- [ ] Advanced analytics dashboards
-- [ ] Mobile app (React Native)
-- [ ] API rate limiting and quotas
-- [ ] Advanced team collaboration features
-- [ ] Integration marketplace
-
-### Long-term Goals
-
-- Social media channel integrations (Twitter, Facebook Messenger)
-- AI-powered message suggestions
-- Advanced workflow automation
-- Enterprise SSO integration
-- Multi-tenant architecture
+- Check the documentation and examples
+- Review the API endpoint documentation
 
 ---
 
-**UniBox** - Unifying customer communication across all channels 🚀
+Built with ❤️ using Next.js, Prisma, and modern web technologies.

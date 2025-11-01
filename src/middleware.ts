@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
-import { auth } from "@/lib/auth";
 
 // Define public routes that don't require authentication
 const publicRoutes = ["/", "/login", "/signup"];

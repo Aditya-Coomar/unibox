@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient, CommunicationChannel } from "@prisma/client";
+import { CommunicationChannel } from "@prisma/client";
 import {
   processTwilioWebhook,
   validateTwilioSignature,
 } from "@/lib/integrations/twilio";
-
-const prisma = new PrismaClient();
+import { processInboundMessage } from "@/lib/services/message-service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,94 +28,44 @@ export async function POST(request: NextRequest) {
     // Process the webhook data
     const webhookData = processTwilioWebhook(params as any);
 
-    // Find or create contact
-    const phoneNumber = webhookData.from.replace("whatsapp:", "");
-    let contact = await prisma.contact.findFirst({
-      where: {
-        OR: [{ phone: phoneNumber }, { whatsappNumber: phoneNumber }],
-      },
+    // Prepare attachments if media is present
+    const attachments = webhookData.hasMedia
+      ? [
+          {
+            filename: `media_${Date.now()}`,
+            url: webhookData.mediaUrl || "",
+            contentType: webhookData.mediaType || "application/octet-stream",
+            size: 0, // Size not available from Twilio webhook
+          },
+        ]
+      : [];
+
+    // Process the inbound message using our service
+    const result = await processInboundMessage({
+      from: webhookData.from.replace("whatsapp:", ""),
+      to: webhookData.to,
+      content: webhookData.content,
+      channel: webhookData.channel as CommunicationChannel,
+      externalId: webhookData.externalId,
+      timestamp: new Date(),
+      attachments: attachments,
     });
 
-    if (!contact) {
-      // Create new contact
-      contact = await prisma.contact.create({
-        data: {
-          phone: webhookData.channel === "SMS" ? phoneNumber : undefined,
-          whatsappNumber:
-            webhookData.channel === "WHATSAPP" ? phoneNumber : undefined,
-          firstName: `Contact ${phoneNumber.slice(-4)}`, // Temporary name
-        },
-      });
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error || "Failed to process message" },
+        { status: 500 }
+      );
     }
 
-    // Find or create conversation
-    let conversation = await prisma.conversation.findFirst({
-      where: {
-        contactId: contact.id,
-        channel: webhookData.channel,
-      },
-    });
-
-    if (!conversation) {
-      conversation = await prisma.conversation.create({
-        data: {
-          contactId: contact.id,
-          channel: webhookData.channel,
-          lastMessageAt: new Date(),
-          unreadCount: 1,
-        },
-      });
-    } else {
-      // Update conversation
-      await prisma.conversation.update({
-        where: { id: conversation.id },
-        data: {
-          lastMessageAt: new Date(),
-          unreadCount: { increment: 1 },
-        },
-      });
-    }
-
-    // Create message
-    await prisma.message.create({
+    return NextResponse.json({
+      success: true,
       data: {
-        conversationId: conversation.id,
-        content: webhookData.content,
-        channel: webhookData.channel,
-        direction: "INBOUND",
-        externalId: webhookData.externalId,
-        status: "DELIVERED",
-        metadata: webhookData.hasMedia
-          ? {
-              mediaUrl: webhookData.mediaUrl,
-              mediaType: webhookData.mediaType,
-            }
-          : undefined,
+        message: result.message,
+        conversation: result.conversation,
+        contact: result.contact,
       },
     });
-
-    // Update daily metrics
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    await prisma.dailyMetrics.upsert({
-      where: {
-        date_channel: {
-          date: today,
-          channel: webhookData.channel,
-        },
-      },
-      update: {
-        messagesReceived: { increment: 1 },
-      },
-      create: {
-        date: today,
-        channel: webhookData.channel,
-        messagesReceived: 1,
-      },
-    });
-
-    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Twilio webhook error:", error);
     return NextResponse.json(

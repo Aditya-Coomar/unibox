@@ -19,7 +19,7 @@ UniBox is a comprehensive customer engagement platform that centralizes communic
 
 - **Authentication**: Better Auth with role-based access (Admin/Editor/Viewer)
 - **Database**: PostgreSQL with Prisma ORM for type-safe queries
-- **Integrations**: Twilio (SMS/WhatsApp), Resend (Email), extensible architecture
+- **Integrations**: Twilio (SMS/WhatsApp), Custom Mail Server, extensible architecture
 - **UI/UX**: Tailwind CSS, Radix UI components, responsive design
 - **Background Jobs**: Scheduled message processing via API endpoints
 - **File Storage**: Multipart form handling for attachments
@@ -32,7 +32,7 @@ UniBox is a comprehensive customer engagement platform that centralizes communic
 - Node.js 18+
 - PostgreSQL database
 - Twilio Account (for SMS/WhatsApp)
-- Resend Account (for Email)
+- Mail Server
 
 ### Installation
 
@@ -95,13 +95,11 @@ CRON_SECRET="your-cron-secret-for-background-jobs"
 
 ## 📊 Integration Comparison Table
 
-| Channel        | Latency | Cost         | Reliability | Character Limit | Media Support | Two-Way | API Quality |
-| -------------- | ------- | ------------ | ----------- | --------------- | ------------- | ------- | ----------- |
-| **SMS**        | ~1-3s   | $0.0075/msg  | 99.9%       | 160 chars       | ❌            | ✅      | ⭐⭐⭐⭐⭐  |
-| **WhatsApp**   | ~1-2s   | $0.005/msg   | 99.5%       | 4096 chars      | ✅            | ✅      | ⭐⭐⭐⭐⭐  |
-| **Email**      | ~2-10s  | $0.001/email | 99.8%       | Unlimited       | ✅            | ✅      | ⭐⭐⭐⭐    |
-| **Twitter DM** | ~3-5s   | Free         | 95%         | 10,000 chars    | ✅            | ✅      | ⭐⭐⭐      |
-| **Facebook**   | ~2-4s   | Free         | 97%         | 2000 chars      | ✅            | ✅      | ⭐⭐⭐      |
+| Channel      | Latency | Cost         | Reliability | Character Limit | Media Support | Two-Way | API Quality |
+| ------------ | ------- | ------------ | ----------- | --------------- | ------------- | ------- | ----------- |
+| **SMS**      | ~1-3s   | $0.0075/msg  | 99.9%       | 160 chars       | ❌            | ✅      | ⭐⭐⭐⭐⭐  |
+| **WhatsApp** | ~1-2s   | $0.005/msg   | 99.5%       | 4096 chars      | ✅            | ✅      | ⭐⭐⭐⭐⭐  |
+| **Email**    | ~2-10s  | $0.001/email | 99.8%       | Unlimited       | ✅            | ✅      | ⭐⭐⭐⭐    |
 
 ### Integration Notes:
 
@@ -112,58 +110,205 @@ CRON_SECRET="your-cron-secret-for-background-jobs"
 
 ## 🏗 Architecture Overview
 
-### Database Schema (Prisma)
+### Database Schema ER Diagram
 
-```prisma
-model User {
-  id       String   @id @default(cuid())
-  email    String   @unique
-  name     String
-  role     UserRole @default(EDITOR)
-  // ... auth fields
-}
+```mermaid
+erDiagram
+    User {
+        String id PK
+        String email UK "unique"
+        Boolean emailVerified
+        String name
+        String image
+        UserRole role "ADMIN|EDITOR|VIEWER"
+        Boolean isActive
+        DateTime createdAt
+        DateTime updatedAt
+    }
 
-model Contact {
-  id              String  @id @default(cuid())
-  firstName       String?
-  lastName        String?
-  email           String?
-  phone           String?
-  whatsappNumber  String?
-  tags            String[]
-  conversations   Conversation[]
-  notes           Note[]
-}
+    Session {
+        String id PK
+        String token UK "unique"
+        String userId FK
+        DateTime expiresAt
+        String ipAddress
+        String userAgent
+        DateTime createdAt
+        DateTime updatedAt
+    }
 
-model Conversation {
-  id            String    @id @default(cuid())
-  contactId     String
-  channel       CommunicationChannel
-  status        ConversationStatus
-  messages      Message[]
-  lastMessageAt DateTime?
-}
+    Account {
+        String id PK
+        String accountId UK "unique"
+        String providerId
+        String userId FK
+        String accessToken
+        String refreshToken
+        String idToken
+        DateTime accessTokenExpiresAt
+        DateTime refreshTokenExpiresAt
+        String scope
+        String password
+        DateTime createdAt
+        DateTime updatedAt
+    }
 
-model Message {
-  id           String        @id @default(cuid())
-  content      String
-  channel      CommunicationChannel
-  direction    MessageDirection
-  status       MessageStatus
-  scheduledFor DateTime?     // For scheduled messages
-  deliveredAt  DateTime?
-  attachments  Attachment[]
-}
+    Verification {
+        String id PK
+        String identifier
+        String value
+        DateTime expiresAt
+        DateTime createdAt
+        DateTime updatedAt
+    }
 
-model Note {
-  id        String   @id @default(cuid())
-  contactId String
-  authorId  String
-  content   String
-  isPrivate Boolean  @default(false)
-  mentions  String[] // User IDs mentioned with @
-}
+    Contact {
+        String id PK
+        String firstName
+        String lastName
+        String email UK "unique"
+        String phone UK "unique"
+        String whatsappNumber UK "unique"
+        String[] tags
+        Json customFields
+        Boolean isActive
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    Conversation {
+        String id PK
+        String contactId FK
+        CommunicationChannel channel "SMS|WHATSAPP|EMAIL|VOICE_CALL"
+        ConversationStatus status "ACTIVE|CLOSED|ARCHIVED"
+        DateTime lastMessageAt
+        Int unreadCount
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    Message {
+        String id PK
+        String conversationId FK
+        String senderId FK
+        String content
+        CommunicationChannel channel
+        MessageDirection direction "INBOUND|OUTBOUND"
+        MessageStatus status "SCHEDULED|SENT|DELIVERED|READ|FAILED"
+        String externalId
+        DateTime scheduledFor
+        DateTime deliveredAt
+        DateTime readAt
+        Json metadata
+        DateTime createdAt
+    }
+
+    MessageAttachment {
+        String id PK
+        String messageId FK
+        String fileName
+        String fileUrl
+        String fileType
+        Int fileSize
+        DateTime createdAt
+    }
+
+    Note {
+        String id PK
+        String contactId FK
+        String authorId FK
+        String content
+        Boolean isPrivate
+        String[] mentions
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    Template {
+        String id PK
+        String name
+        String content
+        CommunicationChannel channel
+        String[] variables
+        Boolean isActive
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    Campaign {
+        String id PK
+        String name
+        String templateId FK
+        TriggerType triggerType "IMMEDIATE|DELAYED|DATE_BASED|EVENT_BASED"
+        Json triggerData
+        CampaignStatus status "DRAFT|ACTIVE|PAUSED|COMPLETED"
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    CampaignExecution {
+        String id PK
+        String campaignId FK
+        String contactId
+        String messageId
+        String status
+        DateTime executedAt
+        DateTime createdAt
+    }
+
+    DailyMetrics {
+        String id PK
+        Date date
+        CommunicationChannel channel
+        Int messagesSent
+        Int messagesReceived
+        Float responseRate
+        Int avgResponseTime
+    }
+
+    Integration {
+        String id PK
+        IntegrationType type "TWILIO|EMAIL_SERVER"
+        Json config
+        Boolean isActive
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    %% Relationships
+    User ||--o{ Session : "has"
+    User ||--o{ Account : "has"
+    User ||--o{ Message : "sends"
+    User ||--o{ Note : "authors"
+
+    Contact ||--o{ Conversation : "has"
+    Contact ||--o{ Note : "receives"
+
+    Conversation ||--o{ Message : "contains"
+    Conversation }o--|| Contact : "belongs_to"
+
+    Message }o--|| Conversation : "belongs_to"
+    Message }o--o| User : "sent_by"
+    Message ||--o{ MessageAttachment : "has"
+
+    Note }o--|| Contact : "about"
+    Note }o--|| User : "written_by"
+
+    Template ||--o{ Campaign : "uses"
+
+    Campaign ||--o{ CampaignExecution : "executes"
 ```
+
+### Key Schema Features
+
+- **Authentication**: Better Auth compatible with User, Session, Account, and Verification models
+- **Multi-Channel Support**: Unified conversation model supporting SMS, WhatsApp, Email, and Voice
+- **Message Scheduling**: Built-in scheduling with status tracking and delivery confirmation
+- **Team Collaboration**: Private/public notes with @mentions functionality
+- **Campaign Management**: Template-based automated messaging with execution tracking
+- **Analytics**: Daily metrics tracking for performance monitoring
+- **File Attachments**: Support for message attachments with metadata
+- **Flexible Configuration**: JSON fields for extensible metadata and integration settings
 
 ### API Architecture
 
@@ -264,117 +409,6 @@ Response includes:
 - Future scheduled messages
 - Recent processing history
 - System health status
-
-## 🚀 Deployment
-
-### Production Checklist
-
-- [ ] Environment variables configured
-- [ ] Database migrations applied
-- [ ] Webhook endpoints configured
-- [ ] Cron job for scheduled messages
-- [ ] File upload permissions
-- [ ] SSL certificates
-- [ ] Rate limiting (Nginx/CloudFlare)
-- [ ] Monitoring & logging
-
-### Recommended Stack
-
-- **Hosting**: Vercel, Railway, or DigitalOcean App Platform
-- **Database**: Supabase, PlanetScale, or managed PostgreSQL
-- **File Storage**: AWS S3, CloudFlare R2, or DigitalOcean Spaces
-- **Monitoring**: LogRocket, Sentry, or Datadog
-- **Analytics**: PostHog, Mixpanel, or Google Analytics
-
-## 📈 Usage Examples
-
-### Scheduling a Follow-up Message
-
-```typescript
-// Using the UI scheduling feature
-const messageData = {
-  contactId: "contact_123",
-  content: "Hi! Following up on our conversation yesterday.",
-  channel: "SMS",
-  scheduledFor: "2024-01-15T09:00:00Z", // 9 AM next day
-};
-
-await fetch("/api/messages/send", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(messageData),
-});
-```
-
-### Adding Team Notes with Mentions
-
-```typescript
-const noteData = {
-  contactId: "contact_123",
-  content:
-    "Customer interested in premium plan. @sarah please follow up with pricing details.",
-  isPrivate: false, // Team-visible note
-};
-
-await fetch("/api/notes", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(noteData),
-});
-```
-
-### Bulk Email with Attachments
-
-```typescript
-const formData = new FormData();
-formData.append("contactId", "contact_123");
-formData.append("channel", "EMAIL");
-formData.append("subject", "Product Catalog 2024");
-formData.append("content", "Please find attached our latest catalog...");
-formData.append("attachments", fileBlob);
-
-await fetch("/api/messages/send", {
-  method: "POST",
-  body: formData,
-});
-```
-
-## 🔍 Testing Guide
-
-### Manual Testing Checklist
-
-1. **Authentication Flow**
-
-   - [ ] Sign up new account
-   - [ ] Login/logout functionality
-   - [ ] Role-based access control
-
-2. **Contact Management**
-
-   - [ ] Create contact with all fields
-   - [ ] Edit contact information
-   - [ ] Add/remove tags
-   - [ ] Search contacts
-
-3. **Messaging Features**
-
-   - [ ] Send SMS (immediate)
-   - [ ] Send WhatsApp (immediate)
-   - [ ] Send Email (immediate)
-   - [ ] Schedule message for future
-   - [ ] Attach file to email
-
-4. **Team Collaboration**
-
-   - [ ] Add public note
-   - [ ] Add private note
-   - [ ] Edit/delete notes
-   - [ ] @mention functionality
-
-5. **Background Processing**
-   - [ ] Verify scheduled messages are sent
-   - [ ] Check processor API status
-   - [ ] Validate error handling
 
 ## 🤝 Contributing
 

@@ -93,7 +93,9 @@ export default function MessageView({
     if (!conversationId) return;
 
     try {
-      setLoading(true);
+      if (!conversation || conversation.id !== conversationId) {
+        setLoading(true);
+      }
       setError(null);
       const response = await fetch(
         `/api/conversations/${conversationId}?includeMessages=true`
@@ -134,7 +136,7 @@ export default function MessageView({
 
   if (!conversationId) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-black">
+      <div className="flex-1 flex items-center justify-center bg-black h-full">
         <div className="text-center text-neutral-400">
           <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-20" />
           <p className="text-lg">Select a conversation to start messaging</p>
@@ -145,7 +147,7 @@ export default function MessageView({
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-black">
+      <div className="flex-1 flex items-center justify-center bg-black h-full">
         <RefreshCw className="h-6 w-6 animate-spin" />
       </div>
     );
@@ -153,7 +155,7 @@ export default function MessageView({
 
   if (error || !conversation) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-black">
+      <div className="flex-1 flex items-center justify-center bg-black h-full">
         <div className="text-center text-neutral-400">
           <p className="text-red-500 mb-2">
             {error || "Conversation not found"}

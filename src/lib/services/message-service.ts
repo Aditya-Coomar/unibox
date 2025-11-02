@@ -275,6 +275,7 @@ export async function processInboundMessage(data: {
   externalId?: string;
   subject?: string;
   timestamp?: Date;
+  metadata?: Record<string, any>;
   attachments?: Array<{
     filename: string;
     url: string;
@@ -369,6 +370,10 @@ export async function processInboundMessage(data: {
           subject: data.subject,
           from: data.from,
           to: data.to,
+          // Include any additional metadata passed in
+          ...(typeof data.metadata === "object" && data.metadata
+            ? data.metadata
+            : {}),
         },
       },
     });

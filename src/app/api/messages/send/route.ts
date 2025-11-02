@@ -129,14 +129,30 @@ export async function POST(request: NextRequest) {
           const whatsappNumber = contact.whatsappNumber || contact.phone;
           if (!whatsappNumber) {
             return NextResponse.json(
-              { error: "Contact has no WhatsApp number" },
+              { error: "Contact has no WhatsApp number or phone number" },
               { status: 400 }
             );
           }
+
+          console.log("Attempting to send WhatsApp message:", {
+            contactId: contact.id,
+            whatsappNumber: contact.whatsappNumber,
+            phone: contact.phone,
+            finalNumber: whatsappNumber,
+            content: validatedData.content.substring(0, 50) + "...",
+          });
+
           const whatsappResult = await sendWhatsApp(
             whatsappNumber,
             validatedData.content
           );
+
+          console.log("WhatsApp send result:", {
+            success: whatsappResult.success,
+            externalId: whatsappResult.externalId,
+            error: whatsappResult.error,
+          });
+
           if (whatsappResult.success) {
             externalId = whatsappResult.externalId || null;
           } else {

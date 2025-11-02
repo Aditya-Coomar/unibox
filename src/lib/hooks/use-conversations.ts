@@ -45,7 +45,9 @@ export function useConversations() {
 
   const fetchConversations = useCallback(async () => {
     try {
-      setLoading(true);
+      if (!conversations) {
+        setLoading(true);
+      }
       setError(null);
 
       const response = await fetch("/api/conversations");

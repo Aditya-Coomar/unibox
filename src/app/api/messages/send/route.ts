@@ -9,7 +9,30 @@ const SendMessageSchema = z.object({
   content: z.string().min(1),
   channel: z.enum(["SMS", "WHATSAPP", "EMAIL", "VOICE_CALL"]),
   subject: z.string().optional(), // For email subject
-  scheduledFor: z.string().datetime().optional(),
+  scheduledFor: z
+    .string()
+    .refine(
+      (dateStr) => {
+        // Allow both datetime-local format (YYYY-MM-DDTHH:mm) and full ISO datetime
+        if (!dateStr) return true; // Optional field
+
+        // Try parsing as datetime-local format first
+        const datetimeLocalRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+        if (datetimeLocalRegex.test(dateStr)) {
+          const date = new Date(dateStr);
+          return !isNaN(date.getTime());
+        }
+
+        // Try parsing as full ISO datetime
+        const date = new Date(dateStr);
+        return !isNaN(date.getTime());
+      },
+      {
+        message:
+          "Invalid datetime format. Expected YYYY-MM-DDTHH:mm or ISO datetime string.",
+      }
+    )
+    .optional(),
   attachments: z
     .array(
       z.object({

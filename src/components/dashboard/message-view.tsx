@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { CommunicationChannel } from "@prisma/client";
 import FileUpload from "@/components/messaging/file-upload";
+import { useRealtimeUpdates } from "@/lib/hooks/use-realtime-updates";
+import toast from "react-hot-toast";
 
 interface Contact {
   id: string;
@@ -87,6 +89,7 @@ export default function MessageView({
   const [sending, setSending] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [showAttachments, setShowAttachments] = useState(false);
+  const [scrollAfterFetch, setScrollAfterFetch] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -99,6 +102,7 @@ export default function MessageView({
     try {
       if (!conversation || conversation.id !== conversationId) {
         setLoading(true);
+        setScrollAfterFetch(true);
       }
       setError(null);
       const response = await fetch(
@@ -125,8 +129,26 @@ export default function MessageView({
       console.error("Failed to fetch conversation:", err);
     } finally {
       setLoading(false);
+      if (scrollAfterFetch) {
+        scrollToBottom();
+      }
     }
   };
+
+  // Set up real-time updates for this conversation
+  useRealtimeUpdates(
+    (update) => {
+      if (update.type === "heartbeat") {
+        setTimeout(() => {
+          fetchConversation().then(() => {
+            // Scroll to bottom after fetching new messages
+            setTimeout(scrollToBottom, 100);
+          });
+        }, 200); // 200ms delay to ensure database consistency
+      }
+    },
+    !!conversationId // Only enable if we have a conversation ID
+  );
 
   useEffect(() => {
     fetchConversation();
@@ -296,11 +318,33 @@ export default function MessageView({
       setAttachments([]);
       setShowAttachments(false);
 
+      // first update the message state optimistically
+      setConversation((prev) =>
+        prev
+          ? {
+              ...prev,
+              messages: [
+                ...prev.messages,
+                {
+                  id: Date.now().toString(),
+                  content: messageText,
+                  direction: "OUTBOUND",
+                  createdAt: new Date().toISOString(),
+                  status: "SENDING",
+                  attachments: [],
+                },
+              ],
+            }
+          : prev
+      );
+      scrollToBottom();
       // Refresh the conversation to show the new message
       await fetchConversation();
     } catch (err) {
       console.error("Failed to send message:", err);
-      alert(err instanceof Error ? err.message : "Failed to send message");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to send message"
+      );
     } finally {
       setSending(false);
     }

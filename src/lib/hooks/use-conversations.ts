@@ -145,16 +145,11 @@ export function useConversations() {
     }
   }, []);
 
-  // Auto-refresh conversations every 30 seconds
+  // Initial fetch
+
   useEffect(() => {
     fetchConversations();
-
-    const interval = setInterval(() => {
-      fetchConversations();
-    }, 30000); // 30 seconds
-
-    return () => clearInterval(interval);
-  }, [fetchConversations]);
+  }, []);
 
   return {
     conversations,

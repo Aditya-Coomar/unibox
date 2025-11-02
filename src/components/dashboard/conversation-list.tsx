@@ -16,6 +16,7 @@ import { CommunicationChannel } from "@prisma/client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useConversations } from "@/lib/hooks/use-conversations";
+import { useRealtimeUpdates } from "@/lib/hooks/use-realtime-updates";
 
 interface Contact {
   id: string;
@@ -50,6 +51,20 @@ export default function ConversationList({
   const [isSearching, setIsSearching] = useState(false);
   const [syncingEmails, setSyncingEmails] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  // Set up real-time updates
+  useRealtimeUpdates(
+    (update) => {
+      if (update.type === "heartbeat") {
+        console.log("Real-time update received:", update.data);
+        // Refresh conversations to get the new message
+        setTimeout(() => {
+          fetchConversations();
+        }, 100); // Small delay to ensure the database has been updated
+      }
+    },
+    true // Enable real-time updates
+  );
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query);

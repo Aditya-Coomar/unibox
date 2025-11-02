@@ -5,6 +5,7 @@ import {
   validateTwilioSignature,
 } from "@/lib/integrations/twilio";
 import { processInboundMessage } from "@/lib/services/message-service";
+import { broadcastUpdate } from "@/app/api/conversations/updates/route";
 
 // Helper function to generate TwiML response
 function generateTwiMLResponse(message?: string): string {
@@ -76,6 +77,42 @@ export async function POST(request: NextRequest) {
       channel: webhookData.channel,
       from: webhookData.from,
     });
+
+    // Broadcast real-time update to all connected clients
+    if (result.success && result.message && result.conversation) {
+      try {
+        broadcastUpdate({
+          type: "new_message",
+          message: {
+            id: result.message.id,
+            content: result.message.content,
+            channel: result.message.channel,
+            direction: result.message.direction,
+            createdAt: result.message.createdAt,
+            status: result.message.status,
+          },
+          conversation: {
+            id: result.conversation.id,
+            lastMessageAt: result.conversation.lastMessageAt,
+            unreadCount: result.conversation.unreadCount || 0,
+          },
+          contact: {
+            id: result.contact?.id,
+            firstName: result.contact?.firstName,
+            lastName: result.contact?.lastName,
+            phone: result.contact?.phone,
+            email: result.contact?.email,
+          },
+        });
+        console.log(
+          "Real-time update broadcasted for message:",
+          result.message.id
+        );
+      } catch (updateError) {
+        console.error("Failed to broadcast real-time update:", updateError);
+        // Don't fail the webhook for broadcast errors
+      }
+    }
 
     // Return empty TwiML response (no auto-reply)
     return new NextResponse(generateTwiMLResponse(), {

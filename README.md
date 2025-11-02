@@ -2,6 +2,12 @@
 
 UniBox is a comprehensive customer engagement platform that centralizes communication across SMS, WhatsApp, Email, and other channels into a single unified inbox. Built with Next.js 14+, TypeScript, and Prisma ORM.
 
+## 🎥 Demo Video
+
+[![UniBox Demo - Unified Multi-Channel Communication Platform](https://img.shields.io/badge/▶️%20Watch%20Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.loom.com/share/e983575143ab402b806a0c04adee81d9)
+
+> **📹 See UniBox in Action**: Watch our comprehensive demo showcasing unified inbox management, multi-channel messaging (SMS, WhatsApp, Email), real-time conversations, contact management, team collaboration with @mentions, message scheduling, and analytics dashboard.
+
 ## 🚀 Features
 
 ### ✅ Core Functionality
@@ -72,25 +78,39 @@ UniBox is a comprehensive customer engagement platform that centralizes communic
 ### Environment Variables
 
 ```env
-# Database
-DATABASE_URL="postgresql://username:password@localhost:5432/unibox"
 
-# Better Auth
-BETTER_AUTH_SECRET="your-secret-key"
+# Connect to Supabase via connection pooling
+DATABASE_URL=""
+
+# Direct connection to the database. Used for migrations
+DIRECT_URL=""
+
+# Better Auth Configuration
+BETTER_AUTH_SECRET="your-super-secure-secret-key-here-replace-in-production"
 BETTER_AUTH_URL="http://localhost:3000"
+NEXT_PUBLIC_BETTER_AUTH_URL="http://localhost:3000"
 
-# Twilio Integration
-TWILIO_ACCOUNT_SID="your-twilio-sid"
-TWILIO_AUTH_TOKEN="your-twilio-token"
-TWILIO_PHONE_NUMBER="+1234567890"
-TWILIO_WHATSAPP_NUMBER="whatsapp:+1234567890"
+# Google OAuth (replace with your actual Google OAuth credentials)
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
 
-# Email Integration
-RESEND_API_KEY="your-resend-api-key"
-EMAIL_FROM="noreply@yourdomain.com"
+# Twilio Configuration
+TWILIO_ACCOUNT_SID=""
+TWILIO_AUTH_TOKEN=""
+TWILIO_PHONE_NUMBER=""
+TWILIO_WHATSAPP_NUMBER="whatsapp:+14155238886"  # Twilio Sandbox number
 
-# Scheduled Messages
-CRON_SECRET="your-cron-secret-for-background-jobs"
+# Custom Email Service Configuration
+CUSTOM_EMAIL_API_KEY=""
+CUSTOM_EMAIL_API_URL="https://mailer.adityacoomar.dev/api/send-mail"
+CUSTOM_EMAIL_SENDER_NAME="UniBox Email Service"
+
+# Scheduled Messages Cron Configuration
+CRON_SECRET="unibox-cron-secret-2024"
+
+# Application Configuration
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+
 ```
 
 ## 📊 Integration Comparison Table

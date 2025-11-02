@@ -131,9 +131,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
+    // Check if message was scheduled or sent immediately
+    const isScheduled = result.message?.status === "SCHEDULED";
+
     return NextResponse.json({
       message: result.message,
-      status: "sent",
+      status: isScheduled ? "scheduled" : "sent",
       externalId: result.externalId,
     });
   } catch (error) {

@@ -6,7 +6,11 @@ import { getSessionCookie } from "better-auth/cookies";
 const publicRoutes = ["/", "/login", "/signup"];
 
 // Define API routes that should be excluded from auth middleware
-const excludedApiRoutes = ["/api/auth", "/api/webhooks"];
+const excludedApiRoutes = [
+  "/api/auth",
+  "/api/webhooks",
+  "/api/scheduled-messages",
+];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

@@ -35,47 +35,57 @@ export async function sendMessage(request: SendMessageRequest) {
       throw new Error("Contact not found");
     }
 
-    // Determine recipient based on channel
-    let recipient: string;
-    let result: { success: boolean; externalId?: string; error?: string };
+    // Check if message should be scheduled
+    const now = new Date();
+    const isScheduled = request.scheduledFor && request.scheduledFor > now;
 
-    switch (request.channel) {
-      case CommunicationChannel.SMS:
-        if (!contact.phone) {
-          throw new Error("Contact has no phone number for SMS");
-        }
-        recipient = contact.phone;
-        result = await sendSMS(recipient, request.content);
-        break;
+    let result: { success: boolean; externalId?: string; error?: string } = {
+      success: true,
+    };
 
-      case CommunicationChannel.WHATSAPP:
-        if (!contact.whatsappNumber) {
-          throw new Error("Contact has no WhatsApp number");
-        }
-        recipient = contact.whatsappNumber;
-        result = await sendWhatsApp(recipient, request.content);
-        break;
+    // If scheduled for future, don't send now - just store the message
+    if (!isScheduled) {
+      // Determine recipient based on channel
+      let recipient: string;
 
-      case CommunicationChannel.EMAIL:
-        if (!contact.email) {
-          throw new Error("Contact has no email address");
-        }
-        recipient = contact.email;
-        result = await sendEmail(
-          recipient,
-          request.subject || "Message from UniBox",
-          request.content,
-          undefined, // from parameter (using default)
-          request.attachments // pass file attachments
-        );
-        break;
+      switch (request.channel) {
+        case CommunicationChannel.SMS:
+          if (!contact.phone) {
+            throw new Error("Contact has no phone number for SMS");
+          }
+          recipient = contact.phone;
+          result = await sendSMS(recipient, request.content);
+          break;
 
-      default:
-        throw new Error(`Unsupported channel: ${request.channel}`);
-    }
+        case CommunicationChannel.WHATSAPP:
+          if (!contact.whatsappNumber) {
+            throw new Error("Contact has no WhatsApp number");
+          }
+          recipient = contact.whatsappNumber;
+          result = await sendWhatsApp(recipient, request.content);
+          break;
 
-    if (!result.success) {
-      throw new Error(result.error || "Failed to send message");
+        case CommunicationChannel.EMAIL:
+          if (!contact.email) {
+            throw new Error("Contact has no email address");
+          }
+          recipient = contact.email;
+          result = await sendEmail(
+            recipient,
+            request.subject || "Message from UniBox",
+            request.content,
+            undefined, // from parameter (using default)
+            request.attachments // pass file attachments
+          );
+          break;
+
+        default:
+          throw new Error(`Unsupported channel: ${request.channel}`);
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to send message");
+      }
     }
 
     // Find or create conversation
@@ -102,7 +112,7 @@ export async function sendMessage(request: SendMessageRequest) {
       });
     }
 
-    // Create message record
+    // Create message record with appropriate status
     const message = await prisma.message.create({
       data: {
         conversationId: conversation.id,
@@ -110,7 +120,7 @@ export async function sendMessage(request: SendMessageRequest) {
         content: request.content,
         channel: request.channel,
         direction: MessageDirection.OUTBOUND,
-        status: "SENT",
+        status: isScheduled ? MessageStatus.SCHEDULED : MessageStatus.SENT,
         externalId: result.externalId,
         scheduledFor: request.scheduledFor,
         metadata: request.subject ? { subject: request.subject } : undefined,

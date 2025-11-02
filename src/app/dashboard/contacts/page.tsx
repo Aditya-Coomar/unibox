@@ -29,9 +29,11 @@ import {
   Filter,
   Edit,
   Trash2,
+  Eye,
 } from "lucide-react";
 import { ContactForm } from "@/components/contacts/contact-form";
 import { SendMessageForm } from "@/components/messaging/send-message-form";
+import { ContactDetailModal } from "@/components/contacts/contact-detail-modal";
 import toast from "react-hot-toast";
 
 interface Contact {
@@ -53,6 +55,7 @@ export default function ContactsPage() {
   const [loading, setLoading] = useState(true);
   const [isContactFormOpen, setIsContactFormOpen] = useState(false);
   const [isMessageFormOpen, setIsMessageFormOpen] = useState(false);
+  const [isContactDetailOpen, setIsContactDetailOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
@@ -225,6 +228,14 @@ export default function ContactsPage() {
     setIsMessageFormOpen(true);
   };
 
+  const handleEditFromModal = (contact: Contact) => {
+    openEditContact(contact);
+  };
+
+  const handleSendMessageFromModal = async (data: any) => {
+    return handleSendMessage(data);
+  };
+
   const getContactName = (contact: Contact) => {
     return (
       `${contact.firstName || ""} ${contact.lastName || ""}`.trim() ||
@@ -382,6 +393,16 @@ export default function ContactsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="bg-neutral-900 border-neutral-800">
                         <DropdownMenuItem
+                          onClick={() => {
+                            setSelectedContact(contact);
+                            setIsContactDetailOpen(true);
+                          }}
+                          className="text-neutral-300 hover:bg-neutral-800"
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           onClick={() => openEditContact(contact)}
                           className="text-neutral-300 hover:bg-neutral-800"
                         >
@@ -497,6 +518,20 @@ export default function ContactsPage() {
           contact={selectedContact}
           onSend={handleSendMessage}
           isLoading={formLoading}
+        />
+      )}
+
+      {/* Contact Detail Modal */}
+      {selectedContact && (
+        <ContactDetailModal
+          open={isContactDetailOpen}
+          onOpenChange={(open) => {
+            setIsContactDetailOpen(open);
+            if (!open) setSelectedContact(null);
+          }}
+          contact={selectedContact}
+          onEdit={handleEditFromModal}
+          onSendMessage={handleSendMessageFromModal}
         />
       )}
     </DashboardLayout>

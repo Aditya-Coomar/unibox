@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { MessageSquare, Mail, Phone, Calendar, Send } from "lucide-react";
+import FileUpload from "./file-upload";
 
 interface Contact {
   id: string;
@@ -33,7 +34,9 @@ interface SendMessageFormProps {
     contactId: string;
     content: string;
     channel: "SMS" | "WHATSAPP" | "EMAIL";
+    subject?: string;
     scheduledFor?: string;
+    attachments?: File[];
   }) => Promise<void>;
   isLoading?: boolean;
 }
@@ -50,6 +53,7 @@ export function SendMessageForm({
   const [scheduledFor, setScheduledFor] = useState("");
   const [isScheduled, setIsScheduled] = useState(false);
   const [subject, setSubject] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   // Get available channels based on contact information
   const getAvailableChannels = () => {
@@ -93,21 +97,50 @@ export function SendMessageForm({
 
     if (!content.trim()) return;
 
-    const messageData: any = {
-      contactId: contact.id,
-      content: content.trim(),
-      channel,
-    };
+    // Create FormData if there are attachments, otherwise use regular object
+    if (channel === "EMAIL" && attachments.length > 0) {
+      const formData = new FormData();
+      formData.append("contactId", contact.id);
+      formData.append("content", content.trim());
+      formData.append("channel", channel);
 
-    if (isScheduled && scheduledFor) {
-      messageData.scheduledFor = scheduledFor;
+      if (subject.trim()) {
+        formData.append("subject", subject.trim());
+      }
+
+      if (isScheduled && scheduledFor) {
+        formData.append("scheduledFor", scheduledFor);
+      }
+
+      // Append each attachment
+      attachments.forEach((file) => {
+        formData.append("attachments", file);
+      });
+
+      await onSend(formData as any);
+    } else {
+      // Regular JSON payload for messages without attachments
+      const messageData: any = {
+        contactId: contact.id,
+        content: content.trim(),
+        channel,
+      };
+
+      if (channel === "EMAIL" && subject.trim()) {
+        messageData.subject = subject.trim();
+      }
+
+      if (isScheduled && scheduledFor) {
+        messageData.scheduledFor = scheduledFor;
+      }
+
+      await onSend(messageData);
     }
-
-    await onSend(messageData);
 
     // Reset form
     setContent("");
     setSubject("");
+    setAttachments([]);
     setScheduledFor("");
     setIsScheduled(false);
     onOpenChange(false);
@@ -209,20 +242,42 @@ export function SendMessageForm({
             </div>
           </div>
 
-          {/* Subject for Email */}
+          {/* Subject and Attachments for Email */}
           {channel === "EMAIL" && (
-            <div className="space-y-2">
-              <Label htmlFor="subject" className="text-neutral-200">
-                Subject
-              </Label>
-              <Input
-                id="subject"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                className="bg-black border-neutral-800 text-white focus:border-white"
-                placeholder="Enter email subject..."
-              />
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="subject" className="text-neutral-200">
+                  Subject
+                </Label>
+                <Input
+                  id="subject"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="bg-black border-neutral-800 text-white focus:border-white"
+                  placeholder="Enter email subject..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-neutral-200">
+                  Attachment (Optional)
+                </Label>
+                <FileUpload
+                  onFilesChange={setAttachments}
+                  maxFiles={1}
+                  maxFileSize={5}
+                  acceptedTypes={[
+                    "image/*",
+                    ".pdf",
+                    ".doc",
+                    ".docx",
+                    ".txt",
+                    ".xlsx",
+                    ".csv",
+                  ]}
+                />
+              </div>
+            </>
           )}
 
           {/* Message Content */}

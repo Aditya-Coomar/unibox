@@ -171,24 +171,33 @@ export default function ContactsPage() {
     }
   };
 
-  const handleSendMessage = async (data: {
-    contactId: string;
-    content: string;
-    channel: "SMS" | "WHATSAPP" | "EMAIL";
-    scheduledFor?: string;
-  }) => {
+  const handleSendMessage = async (data: any) => {
     setFormLoading(true);
     try {
-      const response = await fetch("/api/messages/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+      let response;
+
+      // Check if data is FormData (has attachments) or regular object
+      if (data instanceof FormData) {
+        // Send as FormData for file attachments
+        response = await fetch("/api/messages/send", {
+          method: "POST",
+          body: data,
+        });
+      } else {
+        // Send as JSON for regular messages
+        response = await fetch("/api/messages/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+      }
 
       if (response.ok) {
         const result = await response.json();
         if (result.status === "sent") {
-          toast.success(`${data.channel} message sent successfully!`);
+          const channel =
+            data instanceof FormData ? data.get("channel") : data.channel;
+          toast.success(`${channel} message sent successfully!`);
         } else if (result.status === "scheduled") {
           toast.success("Message scheduled successfully!");
         } else {

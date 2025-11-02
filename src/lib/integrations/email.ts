@@ -26,25 +26,23 @@ function getEmailConfig() {
   };
 }
 
-// Send email via custom API
+// Send email via custom API - Enhanced with file attachment support
 export async function sendEmail(
   to: string,
   subject: string,
   content: string,
   from?: string,
-  attachments?: Array<{
-    fileName: string;
-    fileUrl: string;
-    fileType: string;
-    fileSize: number;
-  }>
+  attachments?:
+    | File[]
+    | Array<{
+        fileName: string;
+        fileUrl: string;
+        fileType: string;
+        fileSize: number;
+      }>
 ) {
   try {
     const config = getEmailConfig();
-
-    const headers = new Headers();
-    headers.append("Content-Type", "application/json");
-    headers.append("x-api-key", config.apiKey);
 
     // Convert plain text content to HTML if it's not already HTML
     const isHtml = content.includes("<") && content.includes(">");
@@ -52,31 +50,109 @@ export async function sendEmail(
       ? content
       : `<p>${content.replace(/\n/g, "<br>")}</p>`;
 
-    const emailData = {
-      recipients: [to],
-      mailSubject: subject,
-      mailBody: htmlContent,
-      mailSenderName: from || config.senderName,
-    };
+    // Check if we have File objects (new attachment format) vs URL attachments (old format)
+    const hasFileAttachments =
+      attachments && attachments.length > 0 && attachments[0] instanceof File;
 
-    const requestOptions = {
-      method: "POST",
-      headers: headers,
-      body: JSON.stringify(emailData),
-    };
+    if (hasFileAttachments) {
+      // NEW: Use FormData for file attachments
+      const formData = new FormData();
+      // Clean and validate email address thoroughly
+      const cleanEmail = to
+        .trim()
+        .toLowerCase()
+        .replace(/^\s+|\s+$/g, "") // Remove leading/trailing whitespace
+        .replace(/[--]/g, "") // Remove control characters only
+        .replace(/\s+/g, ""); // Remove any internal spaces
 
-    const response = await fetch(config.apiUrl, requestOptions);
-    const result = await response.text();
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(cleanEmail)) {
+        throw new Error(`Invalid email format: ${cleanEmail}`);
+      }
+      formData.append("recipients", cleanEmail);
+      formData.append("mailSubject", subject);
+      formData.append("mailBody", htmlContent);
+      formData.append("mailSenderName", from || config.senderName);
 
-    if (!response.ok) {
-      throw new Error(`Email API error: ${response.status} - ${result}`);
+      // Add file attachments (limit to 1 file)
+      const fileAttachments = attachments as File[];
+      if (fileAttachments.length > 0) {
+        formData.append("attachments", fileAttachments[0]); // Only send the first file
+      }
+
+      const headers = new Headers();
+      headers.append("x-api-key", config.apiKey);
+      // Don't set Content-Type for FormData - browser will set it with boundary
+
+      const requestOptions = {
+        method: "POST",
+        headers: headers,
+        body: formData,
+      };
+
+      const response = await fetch(config.apiUrl, requestOptions);
+      const result = await response.text();
+
+      if (!response.ok) {
+        // Parse the error response to provide more helpful error messages
+        let errorMessage = `Email API error: ${response.status}`;
+        try {
+          const errorData = JSON.parse(result);
+          if (
+            errorData.message &&
+            errorData.message.includes("Invalid domain")
+          ) {
+            errorMessage = `Email domain validation failed. The email service may not support sending to ${
+              cleanEmail.split("@")[1]
+            } domains, or the service may be in sandbox mode. Please check the email API configuration or use a different email address.`;
+          } else {
+            errorMessage = `Email API error: ${errorData.message || result}`;
+          }
+        } catch {
+          errorMessage = `Email API error: ${response.status} - ${result}`;
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      return {
+        success: true,
+        externalId: `email_${Date.now()}`,
+        status: "SENT",
+      };
+    } else {
+      // EXISTING: Use JSON for backward compatibility
+      const headers = new Headers();
+      headers.append("Content-Type", "application/json");
+      headers.append("x-api-key", config.apiKey);
+
+      const emailData = {
+        recipients: [to],
+        mailSubject: subject,
+        mailBody: htmlContent,
+        mailSenderName: from || config.senderName,
+      };
+
+      const requestOptions = {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify(emailData),
+      };
+
+      const response = await fetch(config.apiUrl, requestOptions);
+      const result = await response.text();
+
+      if (!response.ok) {
+        throw new Error(`Email API error: ${response.status} - ${result}`);
+      }
+
+      return {
+        success: true,
+        externalId: `email_${Date.now()}`,
+        status: "SENT",
+      };
     }
-
-    return {
-      success: true,
-      externalId: `email_${Date.now()}`, // Generate a simple ID
-      status: "SENT",
-    };
   } catch (error) {
     console.error("Failed to send email:", error);
     return {

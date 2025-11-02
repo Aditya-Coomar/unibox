@@ -17,8 +17,10 @@ import {
   Smartphone,
   ArrowLeft,
   RefreshCw,
+  X,
 } from "lucide-react";
 import { CommunicationChannel } from "@prisma/client";
+import FileUpload from "@/components/messaging/file-upload";
 
 interface Contact {
   id: string;
@@ -83,6 +85,8 @@ export default function MessageView({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [showAttachments, setShowAttachments] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -226,34 +230,72 @@ export default function MessageView({
   };
 
   const handleSend = async () => {
-    if (!messageText.trim() || sending) return;
+    if ((!messageText.trim() && attachments.length === 0) || sending) return;
 
     try {
       setSending(true);
-      const subject =
-        conversation.channel === CommunicationChannel.EMAIL
-          ? `Re: ${
-              conversation.messages[0]?.metadata?.subject ||
-              "Message from UniBox"
-            }`
-          : undefined;
 
-      const response = await fetch(`/api/conversations/${conversationId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: messageText,
-          subject: subject,
-        }),
-      });
+      // For email with attachments, use the message send API with FormData
+      if (
+        conversation.channel === CommunicationChannel.EMAIL &&
+        attachments.length > 0
+      ) {
+        const formData = new FormData();
+        formData.append("contactId", conversation.contact.id);
+        formData.append("content", messageText.trim());
+        formData.append("channel", conversation.channel);
 
-      const result = await response.json();
+        const subject = `Re: ${
+          conversation.messages[0]?.metadata?.subject || "Message from UniBox"
+        }`;
+        formData.append("subject", subject);
 
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to send message");
+        // Append each attachment
+        attachments.forEach((file) => {
+          formData.append("attachments", file);
+        });
+
+        const response = await fetch("/api/messages/send", {
+          method: "POST",
+          body: formData,
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || "Failed to send message");
+        }
+      } else {
+        // Regular conversation API for messages without attachments
+        const subject =
+          conversation.channel === CommunicationChannel.EMAIL
+            ? `Re: ${
+                conversation.messages[0]?.metadata?.subject ||
+                "Message from UniBox"
+              }`
+            : undefined;
+
+        const response = await fetch(`/api/conversations/${conversationId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: messageText,
+            subject: subject,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || "Failed to send message");
+        }
       }
 
+      // Reset form
       setMessageText("");
+      setAttachments([]);
+      setShowAttachments(false);
+
       // Refresh the conversation to show the new message
       await fetchConversation();
     } catch (err) {
@@ -360,14 +402,20 @@ export default function MessageView({
                         className="text-xs opacity-75 flex items-center gap-1"
                       >
                         <Paperclip className="h-3 w-3" />
-                        <a
-                          href={attachment.fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline"
-                        >
-                          {attachment.fileName}
-                        </a>
+                        {attachment.fileUrl.startsWith("#attachment-") ? (
+                          <span className="text-blue-400">
+                            {attachment.fileName} (sent)
+                          </span>
+                        ) : (
+                          <a
+                            href={attachment.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline text-blue-400 hover:text-blue-300"
+                          >
+                            {attachment.fileName}
+                          </a>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -395,14 +443,59 @@ export default function MessageView({
 
       {/* Input */}
       <div className="border-t border-neutral-800 p-4 shrink-0">
+        {/* File Upload Area - Only show for email conversations */}
+        {conversation.channel === CommunicationChannel.EMAIL &&
+          showAttachments && (
+            <div className="mb-4 p-3 bg-neutral-900 rounded-lg border border-neutral-700">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-white">
+                  Attachment
+                </span>
+                <Button
+                  onClick={() => setShowAttachments(false)}
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-neutral-400 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <FileUpload
+                onFilesChange={setAttachments}
+                maxFiles={1}
+                maxFileSize={5}
+                acceptedTypes={[
+                  "image/*",
+                  ".pdf",
+                  ".doc",
+                  ".docx",
+                  ".txt",
+                  ".xlsx",
+                  ".csv",
+                ]}
+              />
+            </div>
+          )}
+
         <div className="flex items-end space-x-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-neutral-400 hover:text-white"
-          >
-            <Paperclip className="h-5 w-5" />
-          </Button>
+          {/* Attachment button - only show for email conversations */}
+          {conversation.channel === CommunicationChannel.EMAIL && (
+            <Button
+              onClick={() => setShowAttachments(!showAttachments)}
+              variant="ghost"
+              size="sm"
+              className={`text-neutral-400 hover:text-white ${
+                showAttachments || attachments.length > 0
+                  ? "text-white bg-neutral-800"
+                  : ""
+              }`}
+            >
+              <Paperclip className="h-5 w-5" />
+              {attachments.length > 0 && (
+                <span className="ml-1 text-xs">{attachments.length}</span>
+              )}
+            </Button>
+          )}
 
           <div className="flex-1 relative">
             <Textarea
@@ -429,7 +522,9 @@ export default function MessageView({
 
           <Button
             onClick={handleSend}
-            disabled={!messageText.trim() || sending}
+            disabled={
+              (!messageText.trim() && attachments.length === 0) || sending
+            }
             className="bg-white text-black hover:bg-neutral-200 disabled:opacity-50"
           >
             {sending ? (
@@ -442,6 +537,9 @@ export default function MessageView({
 
         <div className="mt-2 text-xs text-neutral-400 text-center">
           Press Enter to send, Shift + Enter for new line
+          {conversation.channel === CommunicationChannel.EMAIL && (
+            <> • Click paperclip to attach files</>
+          )}
         </div>
       </div>
     </div>

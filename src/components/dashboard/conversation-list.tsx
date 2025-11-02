@@ -49,6 +49,7 @@ export default function ConversationList({
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [syncingEmails, setSyncingEmails] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
@@ -156,6 +157,20 @@ export default function ConversationList({
       .slice(0, 2);
   };
 
+  // Filter conversations based on status
+  const filteredConversations = conversations.filter((conversation) => {
+    if (statusFilter === "all") return true;
+    if (statusFilter === "unread") return conversation.unreadCount > 0;
+    if (statusFilter === "recent") {
+      if (!conversation.lastMessageAt) return false;
+      const lastMessage = new Date(conversation.lastMessageAt);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      return lastMessage > yesterday;
+    }
+    return true;
+  });
+
   if (loading) {
     return (
       <div className="w-full lg:w-96 border-r border-neutral-800 flex flex-col bg-black h-full">
@@ -213,7 +228,7 @@ export default function ConversationList({
         </div>
 
         {/* Search */}
-        <div className="relative">
+        <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
           <Input
             value={searchQuery}
@@ -237,20 +252,59 @@ export default function ConversationList({
             </div>
           )}
         </div>
+
+        {/* Status Filter */}
+        <div className="flex gap-1 overflow-x-auto">
+          {[
+            { key: "all", label: "All", count: conversations.length },
+            {
+              key: "unread",
+              label: "Unread",
+              count: conversations.filter((c) => c.unreadCount > 0).length,
+            },
+            {
+              key: "recent",
+              label: "Recent",
+              count: conversations.filter((c) => {
+                if (!c.lastMessageAt) return false;
+                const lastMessage = new Date(c.lastMessageAt);
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                return lastMessage > yesterday;
+              }).length,
+            },
+          ].map((filter) => (
+            <Button
+              key={filter.key}
+              onClick={() => setStatusFilter(filter.key)}
+              variant={statusFilter === filter.key ? "default" : "ghost"}
+              size="sm"
+              className={`shrink-0 text-xs h-7 ${
+                statusFilter === filter.key
+                  ? "bg-white text-black hover:bg-neutral-200"
+                  : "text-neutral-400 hover:text-white hover:bg-neutral-800"
+              }`}
+            >
+              {filter.label} ({filter.count})
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* Conversations List */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        {conversations.length === 0 ? (
+        {filteredConversations.length === 0 ? (
           <div className="flex-1 flex items-center justify-center p-4">
             <div className="text-center text-neutral-400">
               <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
               <p>
                 {searchQuery
                   ? "No conversations found"
+                  : statusFilter !== "all"
+                  ? `No ${statusFilter} conversations`
                   : "No conversations yet"}
               </p>
-              {!searchQuery && (
+              {!searchQuery && conversations.length === 0 && (
                 <Button
                   onClick={handleSyncEmails}
                   disabled={syncingEmails}
@@ -271,7 +325,7 @@ export default function ConversationList({
             </div>
           </div>
         ) : (
-          conversations.map((conversation) => (
+          filteredConversations.map((conversation) => (
             <button
               key={conversation.id}
               onClick={() => handleSelectConversation(conversation.id)}

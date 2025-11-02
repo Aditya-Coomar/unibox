@@ -21,6 +21,7 @@ export interface SendMessageRequest {
   senderId: string;
   subject?: string; // For emails
   scheduledFor?: Date;
+  attachments?: File[]; // For email file attachments
 }
 
 export async function sendMessage(request: SendMessageRequest) {
@@ -63,7 +64,9 @@ export async function sendMessage(request: SendMessageRequest) {
         result = await sendEmail(
           recipient,
           request.subject || "Message from UniBox",
-          request.content
+          request.content,
+          undefined, // from parameter (using default)
+          request.attachments // pass file attachments
         );
         break;
 
@@ -113,6 +116,21 @@ export async function sendMessage(request: SendMessageRequest) {
         metadata: request.subject ? { subject: request.subject } : undefined,
       },
     });
+
+    // Handle outbound attachments if present
+    if (request.attachments && request.attachments.length > 0) {
+      // For now, we create placeholder attachment records since we don't have the actual file URLs
+      // In a production system, you would upload files to a storage service first
+      await prisma.messageAttachment.createMany({
+        data: request.attachments.map((file, index) => ({
+          messageId: message.id,
+          fileName: file.name,
+          fileUrl: `#attachment-${message.id}-${index}`, // Placeholder URL
+          fileType: file.type,
+          fileSize: file.size,
+        })),
+      });
+    }
 
     // Update daily metrics
     const today = new Date();

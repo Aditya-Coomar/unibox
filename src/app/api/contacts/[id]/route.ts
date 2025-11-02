@@ -17,7 +17,7 @@ const UpdateContactSchema = z.object({
 // GET /api/contacts/[id] - Get a specific contact
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth.api.getSession({
@@ -28,8 +28,9 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
     const contact = await prisma.contact.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         conversations: {
           include: {
@@ -67,7 +68,7 @@ export async function GET(
 // PUT /api/contacts/[id] - Update a contact
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth.api.getSession({
@@ -81,9 +82,10 @@ export async function PUT(
     const body = await request.json();
     const validatedData = UpdateContactSchema.parse(body);
 
+    const { id } = await params;
     // Check if contact exists
     const existingContact = await prisma.contact.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!existingContact) {
@@ -95,7 +97,7 @@ export async function PUT(
       const duplicateContact = await prisma.contact.findFirst({
         where: {
           AND: [
-            { id: { not: params.id } },
+            { id: { not: id } },
             {
               OR: [
                 validatedData.email ? { email: validatedData.email } : {},
@@ -115,7 +117,7 @@ export async function PUT(
     }
 
     const contact = await prisma.contact.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...validatedData,
         customFields: validatedData.customFields || undefined,
@@ -160,7 +162,7 @@ export async function PUT(
 // DELETE /api/contacts/[id] - Soft delete a contact
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth.api.getSession({
@@ -171,9 +173,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
     // Check if contact exists
     const existingContact = await prisma.contact.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!existingContact) {
@@ -182,7 +185,7 @@ export async function DELETE(
 
     // Soft delete by setting isActive to false
     const contact = await prisma.contact.update({
-      where: { id: params.id },
+      where: { id },
       data: { isActive: false },
     });
 

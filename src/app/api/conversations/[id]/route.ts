@@ -10,7 +10,7 @@ import { headers } from "next/headers";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth.api.getSession({
@@ -21,7 +21,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const conversationId = params.id;
+    const { id: conversationId } = await params;
     const { searchParams } = new URL(request.url);
     const includeMessages = searchParams.get("includeMessages") === "true";
     const limit = parseInt(searchParams.get("limit") || "50");
@@ -56,7 +56,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth.api.getSession({
@@ -67,7 +67,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const conversationId = params.id;
+    const { id: conversationId } = await params;
     const body = await request.json();
     const { action } = body;
 
@@ -91,7 +91,7 @@ export async function PATCH(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth.api.getSession({
@@ -102,7 +102,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const conversationId = params.id;
+    const { id: conversationId } = await params;
     const body = await request.json();
     const { content, subject } = body;
 
